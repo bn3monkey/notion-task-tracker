@@ -94,7 +94,19 @@ ntt guide                              # 에이전트/사용자용 사용법
 - **진행 상황**: 작업 예정 / 작업 중 / 작업 완료 / 작업 보류 / 검토 대기 / 장기 / 폐기
 - **우선 순위**: Urgent & Important / Urgent & Not Important / ASAP & Important / ASAP & Not Important / Someday & Important / Someday & Not Important
 
-상태 기본값: `start` → **작업 중**, `finish` → **작업 완료**(`--keep-open` 시 유지).
+### 입력 키워드 (`start` / `finish` 공통)
+
+| 옵션 | 입력 | 비고 |
+|------|------|------|
+| `--priority` | `ui`/`un`/`ai`/`an`/`si`/`sn` 또는 정식 명칭 | 6값만 허용, 그 외 거부 |
+| `--status` | `예정`/`중`/`완료`/`보류`/`검토`/`장기`/`폐기` 또는 정식 명칭 | |
+
+- 짧은 키 규칙: 긴급도(`u`rgent/`a`sap/`s`omeday) + 중요도(`i`mportant/`n`ot).
+- **상태 기본값**: `start` → 작업 중, `finish` → 작업 완료. `finish --keep-open`이면 유지.
+- `finish`로 `--status`(전환)·`--priority`·`--deadline`을 함께 갱신할 수 있다.
+- **태그 재활용**: 진행 상황·우선 순위를 쓸 때 그 키워드를 **포함하는 기존 태그**가 있으면
+  (예: `🟢 작업 완료`) 새 태그를 만들지 않고 그 태그를 사용한다.
+- `finish` 시 수행기간 = (start 시작일) ~ (finish 호출일).
 
 ## 종료 코드
 

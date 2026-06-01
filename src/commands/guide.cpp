@@ -25,11 +25,27 @@ const char* kGuide = R"GUIDE(# ntt — Notion 업무 트래커 사용법 (에이
 - `ntt create --parent <page_id> [--title "..."]` 새 DB를 올바른 스키마로 생성
 - `ntt setup`                                    기존(연결된) DB에 누락된 필드만 자동 추가
 - `ntt check`                                    설정된 DB 스키마 검증 (불일치 시 exit 2)
-- `ntt start --title "..." [--deadline YYYY-MM-DD] [--priority "..."] [--status "..."]`
+- `ntt start --title "..." [--deadline YYYY-MM-DD] [--priority <키>] [--status <키>]`
 - `ntt resume <id>`                              기존 페이지 속성·본문 출력
-- `ntt finish <id> [--stdin | --summary "..."] [--status ...] [--keep-open]`
+- `ntt finish <id> [--stdin|--summary "..."] [--status <키>|--keep-open] [--priority <키>] [--deadline YYYY-MM-DD]`
 - `ntt search "<query>" [--status ...] [--limit N]`
 - `ntt guide`                                    이 안내 출력
+
+## 입력 키워드 (start / finish 공통)
+
+- **우선 순위** `--priority` (6값만 허용, 짧은 키 권장):
+  - `ui`=Urgent & Important, `un`=Urgent & Not Important
+  - `ai`=ASAP & Important,   `an`=ASAP & Not Important
+  - `si`=Someday & Important, `sn`=Someday & Not Important
+  - 정식 명칭도 그대로 허용. 그 외 값은 거부된다.
+- **진행 상황** `--status`: `예정`/`중`/`완료`/`보류`/`검토`/`장기`/`폐기` (또는 정식 명칭)
+  - `start` 기본 = 작업 중, `finish` 기본 = 작업 완료
+  - `finish --keep-open`은 상태를 그대로 둔다(중간 저장).
+  - `finish --status 보류|검토|장기|폐기 …`로 전환 가능.
+- **태그 재활용**: 진행 상황·우선 순위를 쓸 때, 그 키워드를 **포함하는 기존 select 태그**가
+  있으면(예: "🟢 작업 완료") 새 태그를 만들지 않고 그 태그를 그대로 사용한다.
+- `finish --deadline YYYY-MM-DD`로 마감일을 갱신할 수 있다.
+- `finish` 시 수행기간은 (start에서 기록된 시작일) ~ (finish 호출일)로 설정된다.
 
 ## 기존 DB로 시작하는 흐름
 
@@ -66,11 +82,9 @@ echo "PG 연동 추상화 인터페이스 분리, 단위테스트 12개 추가" 
 - **진행 상황**: 작업 예정 / 작업 중 / 작업 완료 / 작업 보류 / 검토 대기 / 장기 / 폐기
 - **우선 순위**: Urgent & Important / Urgent & Not Important / ASAP & Important / ASAP & Not Important / Someday & Important / Someday & Not Important
 
-## 상태 기본값
+## 기타
 
-- `ntt start`는 진행 상황을 **작업 중**으로 설정한다 (`--status`로 변경).
-- `ntt finish`는 진행 상황을 **작업 완료**로 바꾼다. 중간 저장이면 `--keep-open`을 쓴다.
-- 우선 순위는 `--priority`를 줄 때만 설정된다 (Select라 옵션에 없는 값이면 Notion이 자동 생성).
+- 우선 순위는 `--priority`를 줄 때만 설정된다.
 - 토큰은 NTT_NOTION_TOKEN 환경변수 또는 `ntt init`로 저장된 값을 사용한다.
 )GUIDE";
 

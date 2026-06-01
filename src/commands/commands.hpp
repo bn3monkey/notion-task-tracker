@@ -43,8 +43,10 @@ struct FinishArgs {
     std::string id;
     std::string summary;     // inline summary; ignored if from_stdin
     bool from_stdin = false; // read summary from stdin
-    std::string status;      // optional; default = 완료
-    bool keep_open = false;  // if set, don't change status to 완료
+    std::string status;      // optional; default = 작업 완료
+    bool keep_open = false;  // if set, keep current status
+    std::string priority;    // optional; update 우선 순위
+    std::string deadline;    // optional; update 마감일 (YYYY-MM-DD)
 };
 int cmd_finish(const Context& ctx, const FinishArgs& args);
 

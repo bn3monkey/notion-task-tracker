@@ -40,8 +40,9 @@ int main(int argc, char** argv) {
     auto* start = app.add_subcommand("start", "트래킹 시작 (새 페이지 생성, 6자리 ID 발급)");
     start->add_option("--title", start_args.title, "업무명")->required();
     start->add_option("--deadline", start_args.deadline, "마감일 YYYY-MM-DD");
-    start->add_option("--priority", start_args.priority, "우선순위 (높음/보통/낮음)");
-    start->add_option("--status", start_args.status, "초기 진행 상황");
+    start->add_option("--priority", start_args.priority,
+                      "우선순위 키 (ui/un/ai/an/si/sn) 또는 정식 명칭");
+    start->add_option("--status", start_args.status, "초기 진행 상황 (예정/중/완료/보류/검토/장기/폐기)");
     start->callback([&] { rc = cmd_start(ctx, start_args); });
 
     // ---- resume ----
@@ -56,8 +57,12 @@ int main(int argc, char** argv) {
     finish->add_option("id", finish_args.id, "식별용 ID")->required();
     finish->add_option("--summary", finish_args.summary, "업무 요약 (짧을 때)");
     finish->add_flag("--stdin", finish_args.from_stdin, "요약을 stdin에서 읽기 (권장)");
-    finish->add_option("--status", finish_args.status, "종료 상태 (기본: 완료)");
-    finish->add_flag("--keep-open", finish_args.keep_open, "상태를 완료로 바꾸지 않음 (중간 저장)");
+    finish->add_option("--status", finish_args.status,
+                       "종료 상태 (완료/보류/검토/장기/폐기, 기본: 작업 완료)");
+    finish->add_flag("--keep-open", finish_args.keep_open, "상태를 바꾸지 않음 (중간 저장)");
+    finish->add_option("--priority", finish_args.priority,
+                       "우선순위 키 (ui/un/ai/an/si/sn) 또는 정식 명칭");
+    finish->add_option("--deadline", finish_args.deadline, "마감일 갱신 YYYY-MM-DD");
     finish->callback([&] { rc = cmd_finish(ctx, finish_args); });
 
     // ---- search ----

@@ -34,5 +34,7 @@ int cmd_setup(const Context& ctx) {
         return 0;
     } catch (const NotionError& e) {
         return cmd::fail(ctx, e.what());
+    } catch (const std::exception& e) {
+        return cmd::fail(ctx, std::string("내부 오류: ") + e.what());
     }
 }

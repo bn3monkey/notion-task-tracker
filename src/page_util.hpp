@@ -38,14 +38,25 @@ inline nlohmann::json heading(const std::string& text) {
 }
 
 // ----- read property values back (from a retrieved page) -----
+
+// Return obj[key] as a string only if present AND a string; "" otherwise.
+// (Notion often includes keys with null values, e.g. date.end — never assume.)
+inline std::string str_or_empty(const nlohmann::json& obj, const std::string& key) {
+    if (obj.is_object() && obj.contains(key) && obj[key].is_string())
+        return obj[key].get<std::string>();
+    return "";
+}
+
 inline std::string plain_text_of(const nlohmann::json& rich_array) {
     std::string out;
     if (rich_array.is_array()) {
         for (const auto& r : rich_array) {
-            if (r.contains("plain_text"))
-                out += r["plain_text"].get<std::string>();
-            else if (r.contains("text") && r["text"].contains("content"))
-                out += r["text"]["content"].get<std::string>();
+            std::string p = str_or_empty(r, "plain_text");
+            if (!p.empty()) {
+                out += p;
+            } else if (r.contains("text") && r["text"].is_object()) {
+                out += str_or_empty(r["text"], "content");
+            }
         }
     }
     return out;
@@ -69,20 +80,17 @@ inline std::string read_rich_text(const nlohmann::json& page, const std::string&
 }
 inline std::string read_select(const nlohmann::json& page, const std::string& name) {
     const auto* p = prop(page, name);
-    if (p && p->contains("select") && (*p)["select"].is_object())
-        return (*p)["select"].value("name", "");
+    if (p && p->contains("select")) return str_or_empty((*p)["select"], "name");
     return "";
 }
 inline std::string read_date_start(const nlohmann::json& page, const std::string& name) {
     const auto* p = prop(page, name);
-    if (p && p->contains("date") && (*p)["date"].is_object())
-        return (*p)["date"].value("start", "");
+    if (p && p->contains("date")) return str_or_empty((*p)["date"], "start");
     return "";
 }
 inline std::string read_date_end(const nlohmann::json& page, const std::string& name) {
     const auto* p = prop(page, name);
-    if (p && p->contains("date") && (*p)["date"].is_object())
-        return (*p)["date"].value("end", "");
+    if (p && p->contains("date")) return str_or_empty((*p)["date"], "end");
     return "";
 }
 

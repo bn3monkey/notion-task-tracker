@@ -83,5 +83,7 @@ int cmd_resume(const Context& ctx, const std::string& id) {
         return 0;
     } catch (const NotionError& e) {
         return cmd::fail(ctx, e.what());
+    } catch (const std::exception& e) {
+        return cmd::fail(ctx, std::string("내부 오류: ") + e.what());
     }
 }

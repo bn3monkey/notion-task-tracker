@@ -1,0 +1,54 @@
+name: build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            os: ubuntu-latest
+            configure: -G Ninja -DCMAKE_BUILD_TYPE=Release
+            artifact: build/ntt
+          - name: windows
+            os: windows-latest
+            configure: -G "Visual Studio 17 2022" -A x64
+            artifact: build/Release/ntt.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Linux: curl is built from source with the OpenSSL TLS backend.
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libssl-dev ninja-build pkg-config
+
+      - name: Configure
+        run: cmake -S . -B build ${{ matrix.configure }}
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Smoke test
+        shell: bash
+        run: |
+          BIN="${{ matrix.artifact }}"
+          "$BIN" guide >/dev/null
+          "$BIN" --help
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ntt-${{ matrix.name }}
+          path: ${{ matrix.artifact }}
+          if-no-files-found: error

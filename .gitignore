@@ -1,0 +1,11 @@
+# build output
+/out/
+/build/
+_deps/
+
+# machine-specific generated build script
+/script/build.sh
+
+# local config / secrets
+config.json
+*.token

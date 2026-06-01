@@ -16,7 +16,11 @@ int cmd_finish(const Context& ctx, const FinishArgs& args) {
 
     try {
         NotionClient client(cfg.effective_token());
-        nlohmann::json page = cmd::find_page_by_id(client, cfg.database_id, args.id);
+        schema::Resolved s = cmd::load_schema(client, cfg.database_id);
+        if (s.id.empty())
+            return cmd::fail(ctx, "'식별용 ID' 속성이 없습니다. 'ntt setup'을 실행하세요.", 2);
+
+        nlohmann::json page = cmd::find_page_by_id(client, cfg.database_id, s.id, args.id);
         if (page.is_null())
             return cmd::fail(ctx, "ID '" + args.id + "'에 해당하는 페이지를 찾지 못했습니다.", 3);
 
@@ -37,31 +41,34 @@ int cmd_finish(const Context& ctx, const FinishArgs& args) {
         }
 
         // 2) Update properties: period end = today (preserve start), status.
-        std::string start = page_util::read_date_start(page, schema::PERIOD);
-        if (start.empty()) start = today;
-        const std::string status =
-            !args.status.empty() ? args.status
-                                  : (args.keep_open ? page_util::read_select(page, schema::STATUS)
-                                                    : schema::finished_status());
-
         nlohmann::json props;
-        props[schema::PERIOD] = page_util::date(start, today);
-        if (!status.empty()) props[schema::STATUS] = page_util::select(status);
-        client.patch("/pages/" + page_id, {{"properties", props}});
+        if (!s.period.empty()) {
+            std::string start = page_util::read_date_start(page, s.period);
+            if (start.empty()) start = today;
+            props[s.period] = page_util::date(start, today);
+        }
+        std::string status;
+        if (!s.status.empty()) {
+            status = !args.status.empty()
+                         ? args.status
+                         : (args.keep_open ? page_util::read_select(page, s.status)
+                                           : schema::finished_status());
+            if (!status.empty()) props[s.status] = page_util::select(status);
+        }
+        if (!props.empty()) client.patch("/pages/" + page_id, {{"properties", props}});
 
         if (ctx.json) {
-            nlohmann::json j = {{"ok", true},
-                                {"id", args.id},
-                                {"page_id", page_id},
-                                {"url", page.value("url", "")},
-                                {"status", status},
-                                {"period_end", today},
-                                {"appended", !summary.empty()}};
-            cmd::ok_json(j);
+            cmd::ok_json({{"ok", true},
+                          {"id", args.id},
+                          {"page_id", page_id},
+                          {"url", page.value("url", "")},
+                          {"status", status},
+                          {"period_end", s.period.empty() ? "" : today},
+                          {"appended", !summary.empty()}});
         } else {
             std::cout << "[ntt] 트래킹 종료: " << args.id << "\n";
-            std::cout << "  상태      : " << status << "\n";
-            std::cout << "  수행기간  : " << start << " ~ " << today << "\n";
+            if (!status.empty()) std::cout << "  상태      : " << status << "\n";
+            if (!s.period.empty()) std::cout << "  종료일    : " << today << "\n";
             std::cout << "  기록 추가 : " << (summary.empty() ? "없음" : "완료") << "\n";
         }
         return 0;

@@ -44,17 +44,24 @@ inline bool need_database(const Context& ctx, const Config& cfg) {
     return true;
 }
 
-// Find a single page in the configured DB by its 식별용 ID property.
+// Find a single page in the configured DB by its identifier property.
+// `id_prop` is the actual property name (resolved from the DB schema).
 // Returns the page JSON, or a null json if not found.
 inline nlohmann::json find_page_by_id(NotionClient& client, const std::string& database_id,
-                                      const std::string& id) {
+                                      const std::string& id_prop, const std::string& id) {
     nlohmann::json query = {
-        {"filter", {{"property", schema::ID}, {"rich_text", {{"equals", id}}}}},
+        {"filter", {{"property", id_prop}, {"rich_text", {{"equals", id}}}}},
         {"page_size", 1}};
     nlohmann::json res = client.post("/databases/" + database_id + "/query", query);
     if (res.contains("results") && res["results"].is_array() && !res["results"].empty())
         return res["results"][0];
     return nlohmann::json();  // null
+}
+
+// Fetch the configured DB and resolve its property-name mapping.
+inline schema::Resolved load_schema(NotionClient& client, const std::string& database_id) {
+    nlohmann::json db = client.get("/databases/" + database_id);
+    return schema::resolve(db);
 }
 
 }  // namespace cmd

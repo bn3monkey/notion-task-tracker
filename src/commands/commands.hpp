@@ -13,12 +13,15 @@ struct InitArgs {
 };
 int cmd_init(const Context& ctx, const InitArgs& args);
 
-// ---- setup (create DB with the required schema under a parent page) ----
-struct SetupArgs {
+// ---- create (create a new DB with the full schema under a parent page) ----
+struct CreateArgs {
     std::string parent_page_id;
     std::string title;  // DB title; default applied if empty
 };
-int cmd_setup(const Context& ctx, const SetupArgs& args);
+int cmd_create(const Context& ctx, const CreateArgs& args);
+
+// ---- setup (add any missing fields to the already-configured DB) ----
+int cmd_setup(const Context& ctx);
 
 // ---- check (validate configured DB schema) ----
 int cmd_check(const Context& ctx);

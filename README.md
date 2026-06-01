@@ -41,12 +41,26 @@ pwsh scripts/install.ps1 -Dir D:\repo\my-project
 
 ## 사용
 
+### 새 DB를 만들 때
+
 ```bash
 ntt init --token <secret_...>          # 연결 설정
-ntt setup --parent <page_id>           # 올바른 스키마로 DB 생성 (+ db_id 저장)
+ntt create --parent <page_id>          # 새 DB를 올바른 스키마로 생성 (+ db_id 저장)
 ntt check                              # 스키마 검증
+```
 
-ID=$(ntt start --title "결제 모듈 리팩터링" --priority 높음 --json | jq -r .id)
+### 기존 DB를 쓸 때
+
+```bash
+ntt init --token <secret_...> --db <기존_database_id>
+ntt setup                              # 없는 필드만 자동 추가 (기존 컬럼/옵션은 보존)
+ntt check
+```
+
+### 트래킹
+
+```bash
+ID=$(ntt start --title "결제 모듈 리팩터링" --priority "ASAP & Important" --json | jq -r .id)
 # ... 작업 ...
 echo "PG 추상화 분리, 테스트 12개 추가" | ntt finish "$ID" --stdin --json
 
@@ -55,20 +69,32 @@ ntt search "결제" --json               # 업무 검색 → ID 목록
 ntt guide                              # 에이전트/사용자용 사용법
 ```
 
+- `create` = 새 DB 생성, `setup` = 기존 DB에 누락 필드 추가. 둘은 다른 명령이다.
 - 에이전트는 `--json`으로 구조화 출력을 받는다.
 - 긴 요약은 인자 대신 stdin으로 전달한다.
 - 토큰은 `NTT_NOTION_TOKEN` 환경변수로도 줄 수 있다 (config보다 우선).
 
-## DB 스키마
+## DB 스키마 (속성 매칭)
 
-| 속성 | 타입 | 값 |
-|------|------|----|
-| 제목 | Title | 업무명 |
-| 식별용 ID | Rich text | 6자리 [A-Za-z0-9] |
-| 수행기간 | Date | 시작~종료 |
-| 마감일 | Date | |
-| 진행 상황 | Select | 시작 전 / 진행중 / 완료 |
-| 우선 순위 | Select | 높음 / 보통 / 낮음 |
+`ntt`는 기존 DB의 컬럼 이름을 아래 후보군으로 **자동 인식**한다. 없으면 `ntt setup`이 정식 이름으로 추가한다.
+
+| 논리 필드 | 타입 | 인식되는 컬럼 이름 |
+|-----------|------|--------------------|
+| 제목 | Title | **페이지 이름(title 타입) 자체** — 별도 컬럼 불필요, 이름 무관 |
+| 식별용 ID | Rich text | `식별용 ID` (6자리 [A-Za-z0-9]) |
+| 수행기간 | Date | `수행기간` 또는 `수행 기간` |
+| 마감일 | Date | `마감일` |
+| 진행 상황 | Select | `진행 상황` |
+| 우선 순위 | Select | `우선 순위` 또는 `우선순위` |
+
+### 필드 생성 시 기본 옵션 (`create` / `setup`)
+
+기존 select의 옵션은 보존하며, **새로 만들 때만** 아래 옵션을 넣는다.
+
+- **진행 상황**: 작업 예정 / 작업 중 / 작업 완료 / 작업 보류 / 검토 대기 / 장기 / 폐기
+- **우선 순위**: Urgent & Important / Urgent & Not Important / ASAP & Important / ASAP & Not Important / Someday & Important / Someday & Not Important
+
+상태 기본값: `start` → **작업 중**, `finish` → **작업 완료**(`--keep-open` 시 유지).
 
 ## 종료 코드
 

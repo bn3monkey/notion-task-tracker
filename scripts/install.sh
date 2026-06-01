@@ -94,4 +94,6 @@ install_dir() {
 }
 
 if [[ "$MODE" == "global" ]]; then install_global; else install_dir; fi
-echo "[install] 완료. 다음: ntt init --token <NOTION_TOKEN> && ntt setup --parent <page_id>"
+echo "[install] 완료. 다음 단계:"
+echo "  기존 DB:  ntt init --token <TOKEN> --db <database_id> && ntt setup && ntt check"
+echo "  새  DB:   ntt init --token <TOKEN> && ntt create --parent <page_id>"

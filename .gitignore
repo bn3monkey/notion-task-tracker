@@ -9,3 +9,5 @@ _deps/
 # local config / secrets
 config.json
 *.token
+
+workspace/

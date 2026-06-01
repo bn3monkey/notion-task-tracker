@@ -20,12 +20,16 @@ int main(int argc, char** argv) {
     init->add_option("--db", init_args.database_id, "task-tracker database id");
     init->callback([&] { rc = cmd_init(ctx, init_args); });
 
-    // ---- setup ----
-    SetupArgs setup_args;
-    auto* setup = app.add_subcommand("setup", "올바른 스키마로 DB 생성 (부모 페이지 아래)");
-    setup->add_option("--parent", setup_args.parent_page_id, "부모 페이지 id")->required();
-    setup->add_option("--title", setup_args.title, "DB 제목 (기본: 업무 트래커)");
-    setup->callback([&] { rc = cmd_setup(ctx, setup_args); });
+    // ---- create (new DB) ----
+    CreateArgs create_args;
+    auto* create = app.add_subcommand("create", "새 DB를 올바른 스키마로 생성 (부모 페이지 아래)");
+    create->add_option("--parent", create_args.parent_page_id, "부모 페이지 id")->required();
+    create->add_option("--title", create_args.title, "DB 제목 (기본: 업무 트래커)");
+    create->callback([&] { rc = cmd_create(ctx, create_args); });
+
+    // ---- setup (add missing fields to the configured existing DB) ----
+    auto* setup = app.add_subcommand("setup", "기존 DB에 누락된 필드 자동 추가");
+    setup->callback([&] { rc = cmd_setup(ctx); });
 
     // ---- check ----
     auto* check = app.add_subcommand("check", "설정된 DB 스키마 검증 (불일치 시 exit 2)");

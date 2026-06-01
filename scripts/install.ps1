@@ -130,4 +130,6 @@ if ($PSCmdlet.ParameterSetName -eq 'Dir') {
     Install-Global
 }
 
-Write-Host "[install] 완료. 다음 단계: ntt init --token <NOTION_TOKEN> 후 ntt setup --parent <page_id>"
+Write-Host "[install] 완료. 다음 단계:"
+Write-Host "  기존 DB:  ntt init --token <TOKEN> --db <database_id> && ntt setup && ntt check"
+Write-Host "  새  DB:   ntt init --token <TOKEN> && ntt create --parent <page_id>"

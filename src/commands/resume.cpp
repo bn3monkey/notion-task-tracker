@@ -35,37 +35,45 @@ int cmd_resume(const Context& ctx, const std::string& id) {
 
     try {
         NotionClient client(cfg.effective_token());
-        nlohmann::json page = cmd::find_page_by_id(client, cfg.database_id, id);
+        schema::Resolved s = cmd::load_schema(client, cfg.database_id);
+        if (s.id.empty())
+            return cmd::fail(ctx, "'식별용 ID' 속성이 없습니다. 'ntt setup'을 실행하세요.", 2);
+
+        nlohmann::json page = cmd::find_page_by_id(client, cfg.database_id, s.id, id);
         if (page.is_null()) return cmd::fail(ctx, "ID '" + id + "'에 해당하는 페이지를 찾지 못했습니다.", 3);
 
         const std::string page_id = page.value("id", "");
-        const std::string title = page_util::read_title(page, schema::TITLE);
-        const std::string status = page_util::read_select(page, schema::STATUS);
-        const std::string priority = page_util::read_select(page, schema::PRIORITY);
-        const std::string period_start = page_util::read_date_start(page, schema::PERIOD);
-        const std::string period_end = page_util::read_date_end(page, schema::PERIOD);
-        const std::string deadline = page_util::read_date_start(page, schema::DEADLINE);
+        const std::string title = s.title.empty() ? "" : page_util::read_title(page, s.title);
+        const std::string status = s.status.empty() ? "" : page_util::read_select(page, s.status);
+        const std::string priority =
+            s.priority.empty() ? "" : page_util::read_select(page, s.priority);
+        const std::string period_start =
+            s.period.empty() ? "" : page_util::read_date_start(page, s.period);
+        const std::string period_end =
+            s.period.empty() ? "" : page_util::read_date_end(page, s.period);
+        const std::string deadline =
+            s.deadline.empty() ? "" : page_util::read_date_start(page, s.deadline);
         const std::string body = read_body_text(client, page_id);
 
         if (ctx.json) {
-            nlohmann::json j = {{"ok", true},
-                                {"id", id},
-                                {"page_id", page_id},
-                                {"url", page.value("url", "")},
-                                {"title", title},
-                                {"status", status},
-                                {"priority", priority},
-                                {"period_start", period_start},
-                                {"period_end", period_end},
-                                {"deadline", deadline},
-                                {"body", body}};
-            cmd::ok_json(j);
+            cmd::ok_json({{"ok", true},
+                          {"id", id},
+                          {"page_id", page_id},
+                          {"url", page.value("url", "")},
+                          {"title", title},
+                          {"status", status},
+                          {"priority", priority},
+                          {"period_start", period_start},
+                          {"period_end", period_end},
+                          {"deadline", deadline},
+                          {"body", body}});
         } else {
             std::cout << "[ntt] 이어하기: " << title << " (" << id << ")\n";
-            std::cout << "  상태      : " << status << "\n";
-            std::cout << "  우선순위  : " << priority << "\n";
-            std::cout << "  수행기간  : " << period_start
-                      << (period_end.empty() ? "" : " ~ " + period_end) << "\n";
+            if (!status.empty()) std::cout << "  상태      : " << status << "\n";
+            if (!priority.empty()) std::cout << "  우선순위  : " << priority << "\n";
+            if (!period_start.empty())
+                std::cout << "  수행기간  : " << period_start
+                          << (period_end.empty() ? "" : " ~ " + period_end) << "\n";
             if (!deadline.empty()) std::cout << "  마감일    : " << deadline << "\n";
             if (!body.empty()) {
                 std::cout << "  --- 기존 기록 ---\n";

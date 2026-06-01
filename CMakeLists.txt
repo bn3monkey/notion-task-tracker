@@ -62,6 +62,7 @@ add_executable(ntt
   src/id_gen.cpp
   src/util.cpp
   src/commands/init.cpp
+  src/commands/create.cpp
   src/commands/setup.cpp
   src/commands/check.cpp
   src/commands/start.cpp

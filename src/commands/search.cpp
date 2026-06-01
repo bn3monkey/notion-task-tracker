@@ -10,13 +10,14 @@ int cmd_search(const Context& ctx, const SearchArgs& args) {
 
     try {
         NotionClient client(cfg.effective_token());
+        schema::Resolved s = cmd::load_schema(client, cfg.database_id);
 
         // Build filter: title contains query AND status equals (each optional).
         nlohmann::json conditions = nlohmann::json::array();
-        if (!args.query.empty())
-            conditions.push_back({{"property", schema::TITLE}, {"title", {{"contains", args.query}}}});
-        if (!args.status.empty())
-            conditions.push_back({{"property", schema::STATUS}, {"select", {{"equals", args.status}}}});
+        if (!args.query.empty() && !s.title.empty())
+            conditions.push_back({{"property", s.title}, {"title", {{"contains", args.query}}}});
+        if (!args.status.empty() && !s.status.empty())
+            conditions.push_back({{"property", s.status}, {"select", {{"equals", args.status}}}});
 
         nlohmann::json query;
         query["page_size"] = args.limit > 0 ? args.limit : 10;
@@ -30,11 +31,12 @@ int cmd_search(const Context& ctx, const SearchArgs& args) {
         nlohmann::json items = nlohmann::json::array();
         if (res.contains("results")) {
             for (const auto& page : res["results"]) {
-                items.push_back({{"id", page_util::read_rich_text(page, schema::ID)},
-                                 {"title", page_util::read_title(page, schema::TITLE)},
-                                 {"status", page_util::read_select(page, schema::STATUS)},
-                                 {"page_id", page.value("id", "")},
-                                 {"url", page.value("url", "")}});
+                items.push_back(
+                    {{"id", s.id.empty() ? "" : page_util::read_rich_text(page, s.id)},
+                     {"title", s.title.empty() ? "" : page_util::read_title(page, s.title)},
+                     {"status", s.status.empty() ? "" : page_util::read_select(page, s.status)},
+                     {"page_id", page.value("id", "")},
+                     {"url", page.value("url", "")}});
             }
         }
 

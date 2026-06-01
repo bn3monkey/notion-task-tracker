@@ -21,37 +21,56 @@ const char* kGuide = R"GUIDE(# ntt — Notion 업무 트래커 사용법 (에이
 
 ## 명령 레퍼런스
 
-- `ntt init --token <t> [--db <database_id>]`   연결 설정 저장
-- `ntt setup --parent <page_id> [--title "..."]` 올바른 스키마로 DB 생성(부모 페이지 아래)
+- `ntt init --token <t> [--db <database_id>]`   연결 설정 저장 (기존 DB는 --db로 지정)
+- `ntt create --parent <page_id> [--title "..."]` 새 DB를 올바른 스키마로 생성
+- `ntt setup`                                    기존(연결된) DB에 누락된 필드만 자동 추가
 - `ntt check`                                    설정된 DB 스키마 검증 (불일치 시 exit 2)
-- `ntt start --title "..." [--deadline YYYY-MM-DD] [--priority 높음|보통|낮음] [--status ...]`
+- `ntt start --title "..." [--deadline YYYY-MM-DD] [--priority "..."] [--status "..."]`
 - `ntt resume <id>`                              기존 페이지 속성·본문 출력
 - `ntt finish <id> [--stdin | --summary "..."] [--status ...] [--keep-open]`
 - `ntt search "<query>" [--status ...] [--limit N]`
 - `ntt guide`                                    이 안내 출력
 
-## 전형적 흐름
+## 기존 DB로 시작하는 흐름
 
 ```bash
-ID=$(ntt start --title "결제 모듈 리팩터링" --priority 높음 --json | jq -r .id)
+ntt init --token <secret_...> --db <기존_database_id>
+ntt setup --json     # 없는 필드(식별용 ID/수행기간/마감일/진행 상황/우선 순위)만 추가
+ntt check --json     # 스키마 검증
+```
+
+## 전형적 트래킹 흐름
+
+```bash
+ID=$(ntt start --title "결제 모듈 리팩터링" --priority "ASAP & Important" --json | jq -r .id)
 # ... 작업 수행 ...
 echo "PG 연동 추상화 인터페이스 분리, 단위테스트 12개 추가" | ntt finish "$ID" --stdin --json
 ```
 
-## 스키마 (DB 속성)
+## 스키마 (속성 매칭 규칙)
 
-| 속성 | 타입 | 값 |
-|------|------|----|
-| 제목 | Title | 업무명 |
-| 식별용 ID | Rich text | 6자리 [A-Za-z0-9] |
-| 수행기간 | Date | 시작~종료 |
-| 마감일 | Date | |
-| 진행 상황 | Select | 시작 전 / 진행중 / 완료 |
-| 우선 순위 | Select | 높음 / 보통 / 낮음 |
+| 논리 필드 | Notion 타입 | 인식되는 컬럼 이름 |
+|-----------|-------------|--------------------|
+| 제목      | Title       | **페이지 이름(title 타입) 자체** — 별도 컬럼 불필요, 이름 무관 |
+| 식별용 ID | Rich text   | `식별용 ID` |
+| 수행기간  | Date        | `수행기간` 또는 `수행 기간` |
+| 마감일    | Date        | `마감일` |
+| 진행 상황 | Select      | `진행 상황` |
+| 우선 순위 | Select      | `우선 순위` 또는 `우선순위` |
 
-## 주의
+- `ntt`는 기존 DB의 컬럼 이름을 위 후보군으로 자동 인식한다. `setup`/`create`로 만들 땐 첫 번째(정식) 이름을 쓴다.
+- 기존 DB의 select 옵션은 건드리지 않는다. 새로 만들 때만 아래 기본 옵션을 넣는다.
 
-- `ntt finish`는 기본적으로 상태를 '완료'로 바꾼다. 중간 저장이면 `--keep-open`을 쓴다.
+### 필드 생성 시 기본 옵션
+
+- **진행 상황**: 작업 예정 / 작업 중 / 작업 완료 / 작업 보류 / 검토 대기 / 장기 / 폐기
+- **우선 순위**: Urgent & Important / Urgent & Not Important / ASAP & Important / ASAP & Not Important / Someday & Important / Someday & Not Important
+
+## 상태 기본값
+
+- `ntt start`는 진행 상황을 **작업 중**으로 설정한다 (`--status`로 변경).
+- `ntt finish`는 진행 상황을 **작업 완료**로 바꾼다. 중간 저장이면 `--keep-open`을 쓴다.
+- 우선 순위는 `--priority`를 줄 때만 설정된다 (Select라 옵션에 없는 값이면 Notion이 자동 생성).
 - 토큰은 NTT_NOTION_TOKEN 환경변수 또는 `ntt init`로 저장된 값을 사용한다.
 )GUIDE";
 

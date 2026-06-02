@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   ntt 바이너리를 설치하고, 사용법을 Claude/사용자에게 자동으로 익히게 한다.
 
@@ -32,6 +32,22 @@ $ErrorActionPreference = 'Stop'
 $Repo = 'bn3monkey/notion-task-tracker'
 # 레포 안에서 실행됐을 때만 repoRoot 를 잡는다 (irm | iex 시엔 비어 있음).
 $repoRoot = if ($PSScriptRoot) { Split-Path -Parent $PSScriptRoot } else { $null }
+
+# 한글 깨짐 방지: ntt.exe 가 UTF-8 바이트를 그대로 출력하므로, 그 출력을 캡처할 때
+# 콘솔 OutputEncoding 을 UTF-8 로 맞춘다. (콘솔이 없는 호스트에서는 무시)
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
+# UTF-8(BOM 없음)로 파일을 쓴다. PS5.1 의 `Set-Content -Encoding utf8` 은 BOM 을
+# 붙이고, `Get-Content -Raw` 는 BOM 없는 UTF-8 을 ANSI 로 잘못 읽으므로 직접 처리한다.
+function Write-Utf8NoBom {
+    param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][string]$Text)
+    [System.IO.File]::WriteAllText($Path, $Text, (New-Object System.Text.UTF8Encoding($false)))
+}
+function Read-Utf8 {
+    param([Parameter(Mandatory)][string]$Path)
+    if (Test-Path $Path) { [System.IO.File]::ReadAllText($Path, [System.Text.Encoding]::UTF8) } else { '' }
+}
 
 # ----- 1. 바이너리 위치 결정 -------------------------------------------------
 function Get-ReleaseBinary {
@@ -95,7 +111,7 @@ description: Notion 업무 트래커. 업무 시작/이어하기/종료를 ntt C
 
 "@
     $skillPath = Join-Path $skillDir 'SKILL.md'
-    Set-Content -Path $skillPath -Value ($front + ($guide -join "`n")) -Encoding utf8
+    Write-Utf8NoBom -Path $skillPath -Text ($front + ($guide -join "`n"))
     Write-Host "[install] Claude Code Skill 생성: $skillPath"
 }
 
@@ -127,16 +143,16 @@ function Install-Dir {
     $end = '<!-- ntt:end -->'
     $section = "$begin`n## ntt — Notion 업무 트래커 (tools/ntt.exe)`n`n$guide`n$end"
 
-    $existing = if (Test-Path $claudeMd) { Get-Content $claudeMd -Raw } else { '' }
+    $existing = Read-Utf8 $claudeMd
     if ($existing -match [regex]::Escape($begin)) {
         # 기존 섹션 교체
         $pattern = "(?s)$([regex]::Escape($begin)).*?$([regex]::Escape($end))"
         $new = [regex]::Replace($existing, $pattern, [System.Text.RegularExpressions.MatchEvaluator]{ param($m) $section })
-        Set-Content -Path $claudeMd -Value $new -Encoding utf8
+        Write-Utf8NoBom -Path $claudeMd -Text $new
         Write-Host "[install] CLAUDE.md ntt 섹션 갱신: $claudeMd"
     } else {
         $sep = if ($existing.Trim().Length -gt 0) { "`n`n" } else { '' }
-        Add-Content -Path $claudeMd -Value ($sep + $section) -Encoding utf8
+        Write-Utf8NoBom -Path $claudeMd -Text ($existing + $sep + $section)
         Write-Host "[install] CLAUDE.md에 ntt 섹션 추가: $claudeMd"
     }
 }

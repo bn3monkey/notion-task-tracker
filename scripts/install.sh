@@ -2,10 +2,16 @@
 # ntt 설치 스크립트 (Linux/macOS, 또는 git-bash).
 #
 # 사용법:
+#   curl -fsSL .../install.sh | bash            전역 설치 (기본값: --global)
 #   ./scripts/install.sh --global              전역 설치(~/.local/bin) + Claude Code Skill
 #   ./scripts/install.sh --dir <project_dir>   프로젝트 tools/에 설치 + CLAUDE.md append
 #   옵션: --binary <path>   빌드된 ntt 바이너리 경로 직접 지정
+#         NTT_VERSION=vX.Y.Z 환경변수로 받을 릴리스 버전 지정 (기본: latest)
+#
+# 로컬 빌드본(out/build/)이 있으면 그걸 쓰고, 없으면 GitHub Release에서 받는다.
 set -euo pipefail
+
+REPO="bn3monkey/notion-task-tracker"
 
 MODE=""
 DIR=""
@@ -20,17 +26,56 @@ while [[ $# -gt 0 ]]; do
         *) echo "[install] 알 수 없는 인자: $1" >&2; exit 2 ;;
     esac
 done
-[[ -z "$MODE" ]] && { echo "[install] --global 또는 --dir <path>가 필요합니다." >&2; exit 2; }
+# curl | bash 로 인자 없이 실행되면 전역 설치를 기본으로 한다.
+[[ -z "$MODE" ]] && MODE="global"
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# 레포 안에서 실행됐을 때만 REPO_ROOT 를 잡는다 (curl | bash 시엔 비어 있음).
+REPO_ROOT=""
+if [[ -n "${BASH_SOURCE[0]:-}" && -f "${BASH_SOURCE[0]}" ]]; then
+    REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+fi
+
+# ----- 릴리스에서 바이너리 다운로드 ------------------------------------------
+download_binary() {
+    local os asset url tmp
+    case "$(uname -s)" in
+        Linux)  asset="ntt-linux-x64" ;;
+        Darwin) echo "[install] macOS prebuilt 바이너리는 아직 없습니다. 소스에서 빌드하세요." >&2; exit 1 ;;
+        *)      echo "[install] 지원하지 않는 OS: $(uname -s). 소스에서 빌드하세요." >&2; exit 1 ;;
+    esac
+    case "$(uname -m)" in
+        x86_64|amd64) ;;
+        *) echo "[install] 지원하지 않는 아키텍처: $(uname -m) (x86_64만 제공). 소스에서 빌드하세요." >&2; exit 1 ;;
+    esac
+
+    local version="${NTT_VERSION:-latest}"
+    if [[ "$version" == "latest" ]]; then
+        url="https://github.com/$REPO/releases/latest/download/$asset"
+    else
+        url="https://github.com/$REPO/releases/download/$version/$asset"
+    fi
+
+    tmp="$(mktemp -d)/ntt"
+    echo "[install] 릴리스에서 다운로드: $url" >&2
+    if command -v curl >/dev/null 2>&1; then
+        curl -fSL "$url" -o "$tmp"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO "$tmp" "$url"
+    else
+        echo "[install] curl 또는 wget 이 필요합니다." >&2; exit 1
+    fi
+    chmod +x "$tmp"
+    echo "$tmp"
+}
 
 # ----- 바이너리 위치 결정 ----------------------------------------------------
-if [[ -z "$BINARY" ]]; then
+if [[ -z "$BINARY" && -n "$REPO_ROOT" ]]; then
     BINARY="$(find "$REPO_ROOT/out/build" -name 'ntt' -o -name 'ntt.exe' 2>/dev/null \
               | xargs -r ls -t 2>/dev/null | head -n 1 || true)"
 fi
-[[ -n "$BINARY" && -f "$BINARY" ]] || {
-    echo "[install] 빌드된 ntt를 찾지 못했습니다. 먼저 빌드하세요." >&2; exit 1; }
+if [[ -z "$BINARY" || ! -f "$BINARY" ]]; then
+    BINARY="$(download_binary)"
+fi
 echo "[install] 바이너리: $BINARY"
 
 get_guide() { "$BINARY" guide; }

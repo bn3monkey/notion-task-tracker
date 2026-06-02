@@ -9,9 +9,11 @@
     -Dir <path>    지정한 프로젝트 디렉토리의 tools/에 설치 + 그 프로젝트의 CLAUDE.md에
                    ntt 사용법을 append.
 
-  바이너리는 먼저 빌드되어 있어야 한다 (script/build.sh). -BinaryPath로 직접 지정 가능.
+  로컬 빌드본(out\build\)이 있으면 그걸 쓰고, 없으면 GitHub Release에서 받는다.
+  -BinaryPath로 직접 지정 가능. 받을 릴리스 버전은 $env:NTT_VERSION (기본: latest).
 
 .EXAMPLE
+  irm https://github.com/bn3monkey/notion-task-tracker/releases/latest/download/install.ps1 | iex
   pwsh scripts/install.ps1 -Global
   pwsh scripts/install.ps1 -Dir D:\repo\my-project
 #>
@@ -27,20 +29,36 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$repoRoot = Split-Path -Parent $PSScriptRoot
+$Repo = 'bn3monkey/notion-task-tracker'
+# 레포 안에서 실행됐을 때만 repoRoot 를 잡는다 (irm | iex 시엔 비어 있음).
+$repoRoot = if ($PSScriptRoot) { Split-Path -Parent $PSScriptRoot } else { $null }
 
 # ----- 1. 바이너리 위치 결정 -------------------------------------------------
+function Get-ReleaseBinary {
+    $version = if ($env:NTT_VERSION) { $env:NTT_VERSION } else { 'latest' }
+    $asset = 'ntt-windows-x64.exe'
+    $url = if ($version -eq 'latest') {
+        "https://github.com/$Repo/releases/latest/download/$asset"
+    } else {
+        "https://github.com/$Repo/releases/download/$version/$asset"
+    }
+    $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("ntt-" + [guid]::NewGuid().ToString('N') + ".exe")
+    Write-Host "[install] 릴리스에서 다운로드: $url"
+    Invoke-WebRequest -Uri $url -OutFile $tmp -UseBasicParsing
+    return $tmp
+}
+
 function Resolve-Binary {
     if ($BinaryPath) {
         if (-not (Test-Path $BinaryPath)) { throw "지정한 바이너리가 없습니다: $BinaryPath" }
         return (Resolve-Path $BinaryPath).Path
     }
-    $candidates = Get-ChildItem -Path (Join-Path $repoRoot 'out\build') -Recurse -Filter 'ntt.exe' -ErrorAction SilentlyContinue |
-        Sort-Object LastWriteTime -Descending
-    if (-not $candidates) {
-        throw "빌드된 ntt.exe를 찾지 못했습니다. 먼저 빌드하세요: ./script/generate-msvc-build-script.sh && ./script/build.sh"
+    if ($repoRoot) {
+        $candidates = Get-ChildItem -Path (Join-Path $repoRoot 'out\build') -Recurse -Filter 'ntt.exe' -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending
+        if ($candidates) { return $candidates[0].FullName }
     }
-    return $candidates[0].FullName
+    return (Get-ReleaseBinary)
 }
 
 $binary = Resolve-Binary

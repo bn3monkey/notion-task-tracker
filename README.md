@@ -25,6 +25,23 @@ Notion MCP 커넥터도 필요 없다 (이중 인증 방지).
 
 ## 설치
 
+레포를 클론하지 않고 한 줄로 설치할 수 있다 (GitHub Release의 prebuilt 바이너리를 받는다).
+현재 prebuilt 제공 대상은 **Windows x64 / Linux x64**. macOS·arm64는 소스에서 빌드.
+
+```powershell
+# Windows (PowerShell): 전역 설치 + PATH 등록 + Claude Code Skill 생성
+irm https://github.com/bn3monkey/notion-task-tracker/releases/latest/download/install.ps1 | iex
+```
+
+```bash
+# Linux / git-bash: 전역 설치(~/.local/bin) + Claude Code Skill
+curl -fsSL https://github.com/bn3monkey/notion-task-tracker/releases/latest/download/install.sh | bash
+```
+
+> 특정 버전을 받으려면 `NTT_VERSION=vX.Y.Z` 환경변수를 지정한다.
+
+레포를 직접 받아 쓰는 경우(로컬 빌드본 우선 사용):
+
 ```powershell
 # 전역 설치 (PATH 등록 + Claude Code Skill 생성)
 pwsh scripts/install.ps1 -Global
